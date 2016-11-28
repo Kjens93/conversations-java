@@ -24,7 +24,7 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://github.com/kjens93/conversations-java.git</connection>
+        <connection>scm:git:https://github.com/kjens93/conversations-java.git</connection>
         <developerConnection>scm:git:git@github.com:kjens93/econversations-java.git</developerConnection>
         <url>https://github.com/kjens93/conversations-java</url>
     </scm>
@@ -83,6 +83,13 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>1.9.5</version>
+                <configuration>
+                    <tag>${project.version}</tag>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
