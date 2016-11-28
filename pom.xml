@@ -7,7 +7,7 @@
     <groupId>io.github.kjens93.conversations</groupId>
     <artifactId>conversations</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
     <name>Conversations</name>
     <description>A Java library for conversation-based communication between distributed systems.</description>
@@ -48,6 +48,24 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.19.1</version>
+                <configuration>
+                    <includes>
+                        <include>**/*_UT.java</include>
+                        <include>**/*_IT.java</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
@@ -98,9 +116,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>io.github.kjens93.edmunds</groupId>
-            <artifactId>edmunds-sdk-java</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <groupId>io.github.kjens93.async</groupId>
+            <artifactId>async</artifactId>
+            <version>5.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -111,6 +129,21 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.16.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.danielflower.apprunner</groupId>
+            <artifactId>javasysmon</artifactId>
+            <version>0.3.5.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-websocket</artifactId>
+            <version>4.3.3.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+            <version>4.1</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
