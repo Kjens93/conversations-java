@@ -29,7 +29,7 @@ public class TCPConnection_UT {
         ep2 = subsystem2.getUdpEndpoint();
     }
 
-    @Test(timeout = 500)
+    @Test(timeout = 1000)
     public void test_simple_read_write() throws InterruptedException, ExecutionException, TimeoutException, ReliabilityException {
 
         subsystem2.registerResponder(Message.class, (actions, msg) -> {
