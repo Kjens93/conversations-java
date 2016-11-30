@@ -1,5 +1,6 @@
 package io.github.kjens93.conversations.conversations;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import io.github.kjens93.conversations.collections.UDPInbox;
 import io.github.kjens93.conversations.communications.*;
@@ -17,7 +18,6 @@ import lombok.Setter;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -127,7 +127,7 @@ final class ConversationHandle implements ConversationActions {
     }
 
     @Override
-    public <S extends Serializable> Commitment sendViaTCP(S object, Endpoint recipient) {
+    public <S> Commitment sendViaTCP(S object, Endpoint recipient) {
         return () -> {
             try(TCPConnection conn = openNewTCPConnection(recipient).get()) {
                 conn.writeUTF("OBJECT").flush();
@@ -135,7 +135,9 @@ final class ConversationHandle implements ConversationActions {
                 if(!ready.equalsIgnoreCase("READY"))
                     throw new IllegalStateException("Recipient is not ready. They responded with " + ready + " instead of READY.");
                 try {
-                    conn.writeObject(object).flush();
+                    byte[] bytes = new ObjectMapper().writeValueAsBytes(object);
+                    conn.writeInt(bytes.length).flush();
+                    conn.write(bytes).flush();
                 } catch (IOException e) {
                     Throwables.propagate(e);
                 } finally {
@@ -149,7 +151,7 @@ final class ConversationHandle implements ConversationActions {
     }
 
     @Override
-    public <S extends Serializable> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator) {
+    public <S> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator) {
         return () -> {
             try(TCPConnection conn = waitForTCPConnection(initiator).get()) {
                 String ready = conn.readUTF();
@@ -157,9 +159,12 @@ final class ConversationHandle implements ConversationActions {
                     throw new IllegalStateException("Recipient is not sending an object. They sent " + ready + " instead of OBJECT.");
                 conn.writeUTF("READY").flush();
                 try {
-                    Object o = conn.readObject();
+                    int size = conn.readInt();
+                    byte[] bytes = new byte[size];
+                    conn.readFully(bytes);
+                    S result = new ObjectMapper().readerFor(clazz).readValue(bytes);
                     conn.writeUTF("ACK").flush();
-                    return clazz.cast(o);
+                    return result;
                 } catch (Exception e) {
                     conn.writeUTF("ERR").flush();
                     Throwables.propagate(e);

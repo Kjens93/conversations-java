@@ -9,7 +9,6 @@ import io.github.kjens93.funkier.ThrowingSupplier;
 import io.github.kjens93.promises.Commitment;
 import io.github.kjens93.promises.Promise;
 
-import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,8 +38,8 @@ public interface ConversationActions {
 
     Promise<TCPConnection> waitForTCPConnection(Endpoint initiator);
 
-    <S extends Serializable> Commitment sendViaTCP(S object, Endpoint recipient) throws ReliabilityException;
+    <S> Commitment sendViaTCP(S object, Endpoint recipient) throws ReliabilityException;
 
-    <S extends Serializable> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator);
+    <S> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator);
 
 }
