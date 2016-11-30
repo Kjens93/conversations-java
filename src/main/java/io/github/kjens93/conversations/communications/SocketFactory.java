@@ -47,7 +47,7 @@ public final class SocketFactory {
             } catch(IOException e){
                 e.printStackTrace();
             } finally {
-                System.out.println("Closed TCP connection socket");
+                System.out.println("Closed TCP connection socket on port " + socket.getLocalPort());
             }
         }));
         return socket;

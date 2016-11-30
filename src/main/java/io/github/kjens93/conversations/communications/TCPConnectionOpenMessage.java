@@ -11,7 +11,6 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 public class TCPConnectionOpenMessage extends Message {
 
-    private final String host;
     private final int port;
 
 }

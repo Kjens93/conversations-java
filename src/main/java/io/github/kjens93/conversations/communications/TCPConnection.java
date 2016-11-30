@@ -11,16 +11,81 @@ import java.net.Socket;
  */
 public class TCPConnection implements AutoCloseable {
 
-    private final DataInputStream in;
-    private final DataOutputStream out;
+    /**
+     * Read an object from the ObjectInputStream.  The class of the object, the
+     * signature of the class, and the values of the non-transient and
+     * non-static fields of the class and all of its supertypes are read.
+     * Default deserializing for a class can be overriden using the writeObject
+     * and readObject methods.  Objects referenced by this object are read
+     * transitively so that a complete equivalent graph of objects is
+     * reconstructed by readObject.
+     *
+     * <p>The root object is completely restored when all of its fields and the
+     * objects it references are completely restored.  At this point the object
+     * validation callbacks are executed in order based on their registered
+     * priorities. The callbacks are registered by objects (in the readObject
+     * special methods) as they are individually restored.
+     *
+     * <p>Exceptions are thrown for problems with the InputStream and for
+     * classes that should not be deserialized.  All exceptions are fatal to
+     * the InputStream and leave it in an indeterminate state; it is up to the
+     * caller to ignore or recover the stream state.
+     *
+     * @throws ClassNotFoundException Class of a serialized object cannot be
+     *          found.
+     * @throws InvalidClassException Something is wrong with a class used by
+     *          serialization.
+     * @throws StreamCorruptedException Control information in the
+     *          stream is inconsistent.
+     * @throws OptionalDataException Primitive data was found in the
+     *          stream instead of objects.
+     * @throws IOException Any of the usual Input/Output related exceptions.
+     */
+    public Object readObject() throws IOException, ClassNotFoundException {
+        return objectIn.readObject();
+    }
+
+    /**
+     * Write the specified object to the ObjectOutputStream.  The class of the
+     * object, the signature of the class, and the values of the non-transient
+     * and non-static fields of the class and all of its supertypes are
+     * written.  Default serialization for a class can be overridden using the
+     * writeObject and the readObject methods.  Objects referenced by this
+     * object are written transitively so that a complete equivalent graph of
+     * objects can be reconstructed by an ObjectInputStream.
+     *
+     * <p>Exceptions are thrown for problems with the OutputStream and for
+     * classes that should not be serialized.  All exceptions are fatal to the
+     * OutputStream, which is left in an indeterminate state, and it is up to
+     * the caller to ignore or recover the stream state.
+     *
+     * @throws InvalidClassException Something is wrong with a class used by
+     *          serialization.
+     * @throws NotSerializableException Some object to be serialized does not
+     *          implement the java.io.Serializable interface.
+     * @throws IOException Any exception thrown by the underlying
+     *          OutputStream.
+     * @param obj
+     */
+    public TCPConnection writeObject(Object obj) throws IOException {
+        objectOut.writeObject(obj);
+        return this;
+    }
+
+    private final ObjectOutputStream objectOut;
+    private final ObjectInputStream objectIn;
+    private DataInputStream in;
+    private DataOutputStream out;
     private final Socket socket;
     private ServerSocket serverSocket;
 
     @SneakyThrows
     public TCPConnection(Socket socket) {
         this.socket = socket;
-        this.in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         this.out = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+        this.in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+        this.objectOut = new ObjectOutputStream(socket.getOutputStream());
+        this.objectIn = new ObjectInputStream(socket.getInputStream());
     }
 
     @SneakyThrows
@@ -79,6 +144,8 @@ public class TCPConnection implements AutoCloseable {
         try {
             in.close();
             out.close();
+            objectIn.close();
+            objectOut.close();
             socket.close();
             if (serverSocket != null)
                 serverSocket.close();

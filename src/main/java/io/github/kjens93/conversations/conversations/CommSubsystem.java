@@ -14,6 +14,9 @@ import lombok.experimental.Accessors;
 @Accessors(fluent = true)
 public class CommSubsystem {
 
+    @Getter(AccessLevel.PACKAGE)
+    private static final CommSubsystem staticInstance = new CommSubsystem();
+
     private final ConversationFactory conversationFactory;
 
     private final UDPCommunicator udpCommunicator;

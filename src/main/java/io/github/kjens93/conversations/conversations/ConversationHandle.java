@@ -8,6 +8,7 @@ import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
 import io.github.kjens93.funkier.ThrowingRunnable;
 import io.github.kjens93.funkier.ThrowingSupplier;
+import io.github.kjens93.promises.Commitment;
 import io.github.kjens93.promises.Promise;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -16,6 +17,8 @@ import lombok.Setter;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import java.io.IOException;
+import java.io.Serializable;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Queue;
@@ -124,16 +127,59 @@ final class ConversationHandle implements ConversationActions {
     }
 
     @Override
+    public <S extends Serializable> Commitment sendViaTCP(S object, Endpoint recipient) {
+        return () -> {
+            try(TCPConnection conn = openNewTCPConnection(recipient).get()) {
+                conn.writeUTF("OBJECT").flush();
+                String ready = conn.readUTF();
+                if(!ready.equalsIgnoreCase("READY"))
+                    throw new IllegalStateException("Recipient is not ready. They responded with " + ready + " instead of READY.");
+                try {
+                    conn.writeObject(object).flush();
+                } catch (IOException e) {
+                    Throwables.propagate(e);
+                } finally {
+                    String ack = conn.readUTF();
+                    if (!ready.equalsIgnoreCase("ACK"))
+                        throw new IllegalStateException("Sending to recipient failed. They sent " + ack + " instead of ACK.");
+                }
+            }
+
+        };
+    }
+
+    @Override
+    public <S extends Serializable> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator) {
+        return () -> {
+            try(TCPConnection conn = waitForTCPConnection(initiator).get()) {
+                String ready = conn.readUTF();
+                if (!ready.equalsIgnoreCase("OBJECT"))
+                    throw new IllegalStateException("Recipient is not sending an object. They sent " + ready + " instead of OBJECT.");
+                conn.writeUTF("READY").flush();
+                try {
+                    Object o = conn.readObject();
+                    conn.writeUTF("ACK").flush();
+                    return clazz.cast(o);
+                } catch (Exception e) {
+                    conn.writeUTF("ERR").flush();
+                    Throwables.propagate(e);
+                    return null;
+                }
+            }
+        };
+    }
+
+    @Override
     public Promise<TCPConnection> openNewTCPConnection(Endpoint recipient) {
         return ((Promise<TCPConnection>)() -> {
             try {
                 ServerSocket serverSocket = SocketFactory.createTCPServerSocket();
-                String host = udpCommunicator.getEndpoint().getHostString();
                 int port = serverSocket.getLocalPort();
-                Message msg = new TCPConnectionOpenMessage(host, port);
+                Message msg = new TCPConnectionOpenMessage(port);
                 send(msg, recipient);
                 serverSocket.setSoTimeout(10 * 60 * 1000);
                 Socket socket = serverSocket.accept();
+                System.out.println("Accepted TCP connection from remote " + socket.getRemoteSocketAddress() + " on local port " + socket.getLocalPort());
                 return new TCPConnection(socket, serverSocket);
             } catch (IOException e) {
                 Throwables.propagate(e);
@@ -146,15 +192,17 @@ final class ConversationHandle implements ConversationActions {
     public Promise<TCPConnection> waitForTCPConnection(Endpoint initiator) {
         return ((Promise<TCPConnection>)() -> {
             try {
-                int port = receiveOne()
+                Endpoint newEndpoint = receiveOne()
                         .ofType(TCPConnectionOpenMessage.class)
                         .fromSender(initiator)
-                        .get()
-                        .getMessage()
-                        .getPort();
+                        .map(msg -> {
+                            InetAddress host = initiator.getAddress();
+                            int port = msg.getMessage().getPort();
+                            return new Endpoint(host, port);
+                        }).get();
                 Socket socket = SocketFactory.createTCPConnectionSocket();
-                Endpoint newEndpoint = new Endpoint(initiator.getAddress(), port);
                 socket.connect(newEndpoint);
+                System.out.println("Connected TCP socket on local port " + socket.getLocalPort() + " to remote " + newEndpoint);
                 return new TCPConnection(socket);
             } catch(IOException e) {
                 Throwables.propagate(e);

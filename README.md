@@ -16,4 +16,33 @@ Awesome functional interfaces for Java.
 
 ## Usage
 ```java
+class Example {
+    
+    public void main() {
+        
+        Conversations.registerResponder(Message.class, (actions, initialMessage) -> {
+            actions.send(new Message(), initialMessage.getRemoteEndpoint());
+            actions.receiveOne()
+                   .ofType(Message.class)
+                   .fromSender(initialMessage.getRemoteEndpoint())
+                   .await(1, TimeUnit.SECONDS);
+            actions.send(new Message(), initialMessage.getRemoteEndpoint());
+            actions.receiveViaTCP(ArrayList.class, initialMessage.getRemoteEndpoint());
+        });
+        
+        Conversations.newConversation((actions) -> {
+            Endpoint remote = new Endpoint("127.0.0.1", 12345);
+            actions.reliableSend(new Message(), remote, Message.class);
+            actions.openTCPConnection(remote)
+                   .andThen((conn) -> {
+                        conn.writeUTF("Hello world!")
+                            .writeUTF("This is totally wicked!")
+                            .flush();
+                   }).await();
+            actions.sendViaTCP(new ArrayList<String>(), remote).await();
+        }).await();
+        
+    }
+    
+}
 ```

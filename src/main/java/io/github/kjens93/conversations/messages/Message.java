@@ -7,6 +7,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import lombok.Data;
 
+import java.io.Serializable;
+
 /**
  * Created by kjensen on 11/26/16.
  */
@@ -14,7 +16,7 @@ import lombok.Data;
 @JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "@type")
 @JsonPropertyOrder({"conversationId", "messageId"})
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Message {
+public class Message implements Serializable {
 
     private MessageID conversationId;
     private MessageID messageId;
