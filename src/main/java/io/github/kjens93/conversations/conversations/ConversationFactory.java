@@ -1,15 +1,15 @@
 package io.github.kjens93.conversations.conversations;
 
+import com.google.common.base.Throwables;
 import io.github.kjens93.conversations.collections.UDPInbox;
 import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
+import io.github.kjens93.promises.Commitment;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static io.github.kjens93.async.Async.async;
 
 /**
  * Created by kjensen on 11/27/16.
@@ -28,7 +28,13 @@ public class ConversationFactory {
         ConversationHandle handle = new ConversationHandle(udpCommunicator);
         handle.setConversationId(conversationId);
         handle.setInbox(inbox);
-        async(() -> responder.run(handle));
+        ((Commitment)() -> {
+            try {
+                responder.run(handle);
+            } catch (Exception e) {
+                Throwables.propagate(e);
+            }
+        }).async(Throwable::printStackTrace);
     }
 
     public <T extends Message> void registerResponder(Class<T> clazz, Responder<T> responder) {

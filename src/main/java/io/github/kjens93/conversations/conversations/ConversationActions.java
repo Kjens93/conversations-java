@@ -1,12 +1,12 @@
 package io.github.kjens93.conversations.conversations;
 
-import io.github.kjens93.async.Promise;
 import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.communications.TCPConnection;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.funkier.ThrowingRunnable;
 import io.github.kjens93.funkier.ThrowingSupplier;
+import io.github.kjens93.promises.Promise;
 
 import java.util.concurrent.TimeUnit;
 

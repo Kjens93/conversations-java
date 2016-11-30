@@ -1,8 +1,8 @@
 package io.github.kjens93.conversations.collections;
 
+import io.github.kjens93.promises.Commitment;
 import org.junit.Test;
 
-import static io.github.kjens93.async.Async.async;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -15,7 +15,7 @@ public class NotifyingQueue_UT {
 
         NotifyingQueue<String> q = new NotifyingQueue<>();
 
-        async(() -> q.add("Hello!"));
+        ((Commitment) () -> q.add("Hello!")).async();
 
         synchronized (q) {
             q.wait(5000);
@@ -35,7 +35,7 @@ public class NotifyingQueue_UT {
             q.wait(1000);
         }
 
-        async(() -> q.add("Hello!"));
+        ((Commitment) () -> q.add("Hello!")).async();
 
         assertThat(q.poll())
                 .isNull();

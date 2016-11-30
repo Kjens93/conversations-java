@@ -1,18 +1,18 @@
 package io.github.kjens93.conversations.conversations;
 
-import io.github.kjens93.async.Commitment;
+import com.google.common.base.Throwables;
+import io.github.kjens93.conversations.collections.UDPInbox;
 import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
+import io.github.kjens93.promises.Commitment;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.github.kjens93.async.Async.async;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -55,14 +55,22 @@ public class Conversation_UT {
 
 
 
-        Commitment c = async(() -> conversation.run(handle));
+        Commitment c = ((Commitment)() -> {
+            try {
+                conversation.run(handle);
+            } catch (Exception e) {
+                Throwables.propagate(e);
+            }
+        }).async(Throwable::printStackTrace);
 
-        Thread.sleep(500);
+        Thread.sleep(1000);
 
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
+        UDPInbox box = handle.getInbox();
+
+        box.add(new Envelope<>(new Message(), ep));
+        box.add(new Envelope<>(new Message(), ep));
+        box.add(new Envelope<>(new Message(), ep));
+        box.add(new Envelope<>(new Message(), ep));
 
         c.await();
 
@@ -79,10 +87,16 @@ public class Conversation_UT {
                     .await(2, TimeUnit.SECONDS);
         };
 
-        Commitment c = async(() -> conversation.run(handle));
+        Commitment c = () -> {
+            try {
+                conversation.run(handle);
+            } catch (Exception e) {
+                Throwables.propagate(e);
+            }
+        };
 
         assertThatThrownBy(c::await)
-                .isInstanceOf(ExecutionException.class)
+                .isInstanceOf(RuntimeException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
 
     }
@@ -97,11 +111,16 @@ public class Conversation_UT {
                     .await(2, TimeUnit.SECONDS);
         };
 
-        Commitment c = async(() -> conversation.run(handle));
+        Commitment c = () -> {
+            try {
+                conversation.run(handle);
+            } catch (Exception e) {
+                Throwables.propagate(e);
+            }
+        };
 
         assertThatThrownBy(c::await)
-                .isInstanceOf(ExecutionException.class)
-                .hasCauseInstanceOf(NullPointerException.class)
+                .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("send()");
 
     }

@@ -1,6 +1,6 @@
 package io.github.kjens93.conversations.conversations;
 
-import io.github.kjens93.async.Promise;
+import com.google.common.base.Throwables;
 import io.github.kjens93.conversations.collections.UDPInbox;
 import io.github.kjens93.conversations.communications.*;
 import io.github.kjens93.conversations.messages.Envelope;
@@ -8,18 +8,19 @@ import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
 import io.github.kjens93.funkier.ThrowingRunnable;
 import io.github.kjens93.funkier.ThrowingSupplier;
+import io.github.kjens93.promises.Promise;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
-import static io.github.kjens93.async.Async.async;
 
 /**
  * Created by kjensen on 11/26/16.
@@ -124,32 +125,42 @@ final class ConversationHandle implements ConversationActions {
 
     @Override
     public Promise<TCPConnection> openNewTCPConnection(Endpoint recipient) {
-        return async(() ->{
-            ServerSocket serverSocket = SocketFactory.createTCPServerSocket();
-            String host = udpCommunicator.getEndpoint().getHostString();
-            int port = serverSocket.getLocalPort();
-            Message msg = new TCPConnectionOpenMessage(host, port);
-            send(msg, recipient);
-            serverSocket.setSoTimeout(10 * 60 * 1000);
-            Socket socket = serverSocket.accept();
-            return new TCPConnection(socket, serverSocket);
-        });
+        return ((Promise<TCPConnection>)() -> {
+            try {
+                ServerSocket serverSocket = SocketFactory.createTCPServerSocket();
+                String host = udpCommunicator.getEndpoint().getHostString();
+                int port = serverSocket.getLocalPort();
+                Message msg = new TCPConnectionOpenMessage(host, port);
+                send(msg, recipient);
+                serverSocket.setSoTimeout(10 * 60 * 1000);
+                Socket socket = serverSocket.accept();
+                return new TCPConnection(socket, serverSocket);
+            } catch (IOException e) {
+                Throwables.propagate(e);
+                return null;
+            }
+        }).async(Throwable::printStackTrace);
     }
 
     @Override
     public Promise<TCPConnection> waitForTCPConnection(Endpoint initiator) {
-        return async(() ->{
-            int port = receiveOne()
-                    .ofType(TCPConnectionOpenMessage.class)
-                    .fromSender(initiator)
-                    .get(10, TimeUnit.MINUTES)
-                    .getMessage()
-                    .getPort();
-            Socket socket = SocketFactory.createTCPConnectionSocket();
-            Endpoint newEndpoint = new Endpoint(initiator.getAddress(), port);
-            socket.connect(newEndpoint);
-            return new TCPConnection(socket);
-        });
+        return ((Promise<TCPConnection>)() -> {
+            try {
+                int port = receiveOne()
+                        .ofType(TCPConnectionOpenMessage.class)
+                        .fromSender(initiator)
+                        .get()
+                        .getMessage()
+                        .getPort();
+                Socket socket = SocketFactory.createTCPConnectionSocket();
+                Endpoint newEndpoint = new Endpoint(initiator.getAddress(), port);
+                socket.connect(newEndpoint);
+                return new TCPConnection(socket);
+            } catch(IOException e) {
+                Throwables.propagate(e);
+                return null;
+            }
+        }).async(Throwable::printStackTrace);
     }
 
     private void verifyConversationIdAndInbox() {

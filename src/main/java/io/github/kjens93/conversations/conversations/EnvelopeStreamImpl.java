@@ -4,17 +4,12 @@ import io.github.kjens93.conversations.collections.NotifyingQueue;
 import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
-import io.github.kjens93.funkier.ThrowingSupplier;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 
 import java.util.Queue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import static io.github.kjens93.async.Timeout.timeout;
 
 /**
  * Created by kjensen on 11/26/16.
@@ -41,11 +36,6 @@ class EnvelopeStreamImpl<T extends Message> implements EnvelopeStream<T> {
     }
 
     @Override
-    public Envelope<T> get(long timeout, TimeUnit unit) throws TimeoutException {
-        return timeout(timeout, unit, (ThrowingSupplier<Envelope<T>>) this::get);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public Envelope<T> get() {
         try {
@@ -65,16 +55,6 @@ class EnvelopeStreamImpl<T extends Message> implements EnvelopeStream<T> {
         } catch(InterruptedException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public void await(long timeout, TimeUnit unit) throws TimeoutException {
-        get(timeout, unit);
-    }
-
-    @Override
-    public void await() {
-        get();
     }
 
     private boolean matches(Envelope envelope) {

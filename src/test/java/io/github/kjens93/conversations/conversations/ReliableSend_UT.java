@@ -4,13 +4,13 @@ import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
+import io.github.kjens93.promises.Commitment;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.github.kjens93.async.Async.async;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -33,10 +33,10 @@ public class ReliableSend_UT {
     @Ignore
     public void test_reliableSend_success_attempt1() throws ReliabilityException {
 
-        async(() -> {
-            Thread.sleep(500);
+        ((Commitment)() -> {
+            Commitment.sleepFor(500, TimeUnit.MILLISECONDS).await();
             handle.getInbox().add(new Envelope<>(new Message(), ep));
-        });
+        }).async();
 
         handle.reliableSend(new Message(), ep, Message.class);
 
@@ -46,10 +46,10 @@ public class ReliableSend_UT {
     @Ignore
     public void test_reliableSend_success_attempt2() throws ReliabilityException {
 
-        async(() -> {
-            Thread.sleep(1000);
+        ((Commitment)() -> {
+            Commitment.sleepFor(1000, TimeUnit.MILLISECONDS).await();
             handle.getInbox().add(new Envelope<>(new Message(), ep));
-        });
+        }).async();
 
         handle.reliableSend(new Message(), ep, Message.class);
 
@@ -59,10 +59,10 @@ public class ReliableSend_UT {
     @Ignore
     public void test_reliableSend_success_attempt3() throws ReliabilityException {
 
-        async(() -> {
-            Thread.sleep(1500);
+        ((Commitment)() -> {
+            Commitment.sleepFor(1500, TimeUnit.MILLISECONDS).await();
             handle.getInbox().add(new Envelope<>(new Message(), ep));
-        });
+        }).async();
 
         handle.reliableSend(new Message(), ep, Message.class);
 

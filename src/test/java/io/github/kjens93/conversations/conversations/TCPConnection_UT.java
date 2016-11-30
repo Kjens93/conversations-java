@@ -38,7 +38,8 @@ public class TCPConnection_UT {
 
         handle1.openNewTCPConnection(ep2)
                 .andThen(conn -> {
-                    conn.writeUTF("Hi").flush();
+                    conn.writeUTF("Hi")
+                            .flush();
         }).await(10, TimeUnit.SECONDS);
 
     }

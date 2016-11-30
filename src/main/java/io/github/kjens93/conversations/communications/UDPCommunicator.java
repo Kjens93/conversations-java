@@ -8,13 +8,15 @@ import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
 import io.github.kjens93.conversations.messages.Serializer;
+import io.github.kjens93.promises.Commitment;
 import lombok.extern.java.Log;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.util.logging.Level;
-
-import static io.github.kjens93.async.Async.async;
 
 /**
  * Created by kjensen on 11/27/16.
@@ -68,7 +70,7 @@ public class UDPCommunicator {
     }
 
     private void startReceiving() {
-        async(() -> {
+        ((Commitment)() -> {
             while (!socket.isClosed()) {
                 try {
                     socket.setSoTimeout(500);
@@ -85,7 +87,7 @@ public class UDPCommunicator {
                         throw new RuntimeException(e);
                 }
             }
-        });
+        }).async(Throwable::printStackTrace);
     }
 
     private void receive(DatagramPacket packet) {
