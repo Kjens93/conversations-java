@@ -10,7 +10,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <github.repo>kjens93/conversations-java</github.repo>
         <artifact.name>Conversations</artifact.name>
-        <artifact.description>Awesome functional interfaces for Java.</artifact.description>
+        <artifact.description>UDP and TCP Communications Subsystem for Java</artifact.description>
     </properties>
 
     <groupId>io.github.kjens93.conversations</groupId>
