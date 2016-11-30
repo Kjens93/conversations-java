@@ -67,7 +67,7 @@ public class TCPConnection_UT {
 
     }
 
-    @Test(timeout = 50000)
+    @Test(timeout = 500)
     public void test_send_receive_serializable() {
 
         String objectToSend = "Hello world!";
