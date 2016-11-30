@@ -9,3 +9,6 @@ addons:
   apt:
     packages:
     - oracle-java8-installer
+env:
+  global:
+    secure: CHKP6J8JvRqGfBL6KAUU5Vj2YNUkRvm/jdz10hUYDATdN8O6pl+1SltqZEs75eewoatq5Do4IF/EHz5uejqZGweZvbqG+7Cfn1OWdZZ6apqu/AUWd/hRZjdXIwK3l9n2ukQ064LUKrMuh015QzpV0H4f2kniXOUGwCK3Ilhdh5GQy1PCcJUPC/2WZjOnBV9nPt8z/vozItN5XTORsuV+lXTSRkn++OOJA2OFsFoxHKz1CmsPfJV/njdNYviQKYOy3JO4rXRtVsHSY5KxF3zpZJCk2G3r/LqAo5uhx3b7D4nfMpNn6c7k/XwCWwA7FcdOnxQxRuRKLM1eqqsiVNRSkDprudqy1qoLiFK5P9ZuiyR3jOiI9SeAPmfgUVps4Cn8Ll45c1LuYKaPbZ1+WT8on9EXWSOgjAk5pP+mfG/qo4Glkknvh5DdSD0Baej36pGv/xftjvAyRYOKEGoOMIndhz7/r4yv+ViRsQVcr2sRg4vclSd0K1KTtQkZfyBOX74NTX9RP4rOHvHnf6iJ6Ix+Wpb56GvRDoWPh6t/0ppnd2rGR4WIhvTBg0J06C7M7+4T5+zqDHDzWp+UbG2BnToQaQNp6bLq4QUaoMqyrnmun6/0aLAlgRxh3sbEyYu3MqtWjQslgN9lhiGI/zvrS0/kTJ15CtDfarYhEee3B1eQRtU=
