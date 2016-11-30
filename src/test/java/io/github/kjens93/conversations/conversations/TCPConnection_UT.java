@@ -8,7 +8,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -78,7 +77,7 @@ public class TCPConnection_UT {
         });
 
         handle1.send(new Message(), subsystem2.getUdpEndpoint());
-        ArrayList<String> result = handle1.receiveViaTCP(ArrayList.class, subsystem2.getUdpEndpoint()).get();
+        String result = handle1.receiveViaTCP(String.class, subsystem2.getUdpEndpoint()).get();
         assertThat(result).isEqualTo(result);
 
     }
