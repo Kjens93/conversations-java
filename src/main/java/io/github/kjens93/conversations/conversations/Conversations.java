@@ -1,5 +1,6 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.promises.Commitment;
 
@@ -14,6 +15,10 @@ public interface Conversations {
 
     static Commitment newConversation(Conversation conversation) {
         return CommSubsystem.staticInstance().newConversation(conversation);
+    }
+
+    static Endpoint getLocalUdpEndpoint() {
+        return CommSubsystem.staticInstance().getUdpEndpoint();
     }
 
 }
