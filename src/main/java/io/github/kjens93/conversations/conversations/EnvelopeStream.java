@@ -11,7 +11,7 @@ import io.github.kjens93.promises.Promise;
 public interface EnvelopeStream<T extends Message> extends Promise<Envelope<T>> {
 
     <V extends Message> EnvelopeStream<V> ofType(Class<V> type);
-
     EnvelopeStream<T> fromSender(Endpoint sender);
+
 }
 

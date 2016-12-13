@@ -26,9 +26,8 @@ public final class SocketFactory {
             DatagramSocket socket = new DatagramSocket(port);
             System.out.println("Opened UDP socket on port " + port);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
+                if(!socket.isClosed()) {
                     socket.close();
-                } finally {
                     System.out.println("Closed UDP socket on port " + port);
                 }
             }));
@@ -42,12 +41,13 @@ public final class SocketFactory {
         Socket socket = new Socket();
         System.out.println("Opened TCP connection socket");
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try {
-                socket.close();
-            } catch(IOException e){
-                e.printStackTrace();
-            } finally {
-                System.out.println("Closed TCP connection socket on port " + socket.getLocalPort());
+            if(!socket.isClosed()) {
+                try {
+                    socket.close();
+                    System.out.println("Closed TCP connection socket on port " + socket.getLocalPort());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }));
         return socket;

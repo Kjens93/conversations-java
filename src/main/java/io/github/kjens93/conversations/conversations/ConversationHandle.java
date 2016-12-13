@@ -7,13 +7,15 @@ import io.github.kjens93.conversations.communications.*;
 import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
+import io.github.kjens93.conversations.messages.Serializer;
+import io.github.kjens93.conversations.security.PublicKeyRequestConversationForInitiator;
+import io.github.kjens93.conversations.security.SigningUtils;
 import io.github.kjens93.funkier.ThrowingRunnable;
 import io.github.kjens93.funkier.ThrowingSupplier;
 import io.github.kjens93.promises.Commitment;
 import io.github.kjens93.promises.Promise;
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
@@ -21,37 +23,71 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Queue;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 
 /**
  * Created by kjensen on 11/26/16.
  */
-@Getter
-@RequiredArgsConstructor
-final class ConversationHandle implements ConversationActions {
+class ConversationHandle implements ConversationActions {
 
+    private final CommSubsystem subsystem;
+
+    private final Map<Endpoint, PublicKey> foreignPublicKeys = new HashMap<>();
+
+    private final PrivateKey privateKey;
+
+    @Getter(AccessLevel.PACKAGE)
     private final UDPCommunicator udpCommunicator;
+
+    @Getter(AccessLevel.PACKAGE)
     private final Queue<Envelope> messageSendHistory = new CircularFifoQueue<>(100);
+
+    @Getter(AccessLevel.PACKAGE)
     private final Queue<Envelope> messageReceiveHistory = new CircularFifoQueue<>(100);
-    @Setter(AccessLevel.PACKAGE)
+
+    @Getter(AccessLevel.PACKAGE)
     private MessageID conversationId;
-    @Setter(AccessLevel.PACKAGE)
+
+    @Getter(AccessLevel.PUBLIC)
     private UDPInbox inbox;
+
+    @Setter(AccessLevel.PUBLIC)
     private int reliableRetries = 3;
     private long reliableTimeout = 2000;
     private TimeUnit reliableTimeoutUnit = TimeUnit.MILLISECONDS;
 
+    ConversationHandle(CommSubsystem subsystem) {
+        this.subsystem = subsystem;
+        this.udpCommunicator = subsystem.udpCommunicator();
+        this.privateKey = subsystem.signingKeyPair().getPrivate();
+    }
+
+    ConversationHandle(CommSubsystem subsystem, MessageID conversationId) {
+        this(subsystem);
+        this.conversationId = conversationId;
+        this.inbox = udpCommunicator.inboxes().getOrNew(conversationId);
+    }
+
     @Override
     public void send(Envelope envelope) {
-        if(conversationId != null)
+        if(conversationId != null) {
             envelope.getMessage().setConversationId(conversationId);
-        MessageID messageId = udpCommunicator.send(envelope);
-        if(conversationId == null)
+        }
+        MessageID messageId = envelope.getMessage().getMessageId();
+        if(messageId == null) {
+            messageId = udpCommunicator.newMessageId();
+            envelope.getMessage().setMessageId(messageId);
+        }
+        if(conversationId == null) {
             conversationId = messageId;
-        if(inbox == null)
             inbox = udpCommunicator.inboxes().getOrNew(conversationId);
+        }
+        SigningUtils.sign(envelope.getMessage(), privateKey);
+        udpCommunicator.send(envelope);
         messageSendHistory.add(envelope);
     }
 
@@ -67,30 +103,20 @@ final class ConversationHandle implements ConversationActions {
     }
 
     @Override
-    public void setReliableRetries(int retries) {
-        reliableRetries = retries;
+    public ReliableSendStream reliableSend(Envelope envelope) {
+        return new ReliableSendStreamImpl(this, envelope, reliableRetries, reliableTimeout, reliableTimeoutUnit);
     }
 
     @Override
-    public <T extends Message> Envelope<T> reliableSend(Envelope envelope, Class<T> expectedResponseType) throws ReliabilityException {
-        return retry(reliableRetries, () -> {
-            send(envelope);
-            return receiveOne()
-                    .ofType(expectedResponseType)
-                    .fromSender(envelope.getRemoteEndpoint())
-                    .get(reliableTimeout, reliableTimeoutUnit);
-        });
+    public ReliableSendStream reliableSend(Message message, Endpoint recipient) {
+        return reliableSend(new Envelope<>(message, recipient));
     }
 
     @Override
-    public <T extends Message> Envelope<T> reliableSend(Message message, Endpoint recipient, Class<T> expectedResponseType) throws ReliabilityException {
-        return retry(reliableRetries, () -> {
-            send(message, recipient);
-            return receiveOne()
-                    .ofType(expectedResponseType)
-                    .fromSender(recipient)
-                    .get(reliableTimeout, reliableTimeoutUnit);
-        });
+    public void enableSignatureVerification(Endpoint peer) {
+        if(!foreignPublicKeys.containsKey(peer)) {
+            fillPublicKeyForSender(peer);
+        }
     }
 
     @Override
@@ -123,30 +149,27 @@ final class ConversationHandle implements ConversationActions {
     @Override
     public EnvelopeStream<Message> receiveOne() {
         verifyConversationIdAndInbox();
-        return new EnvelopeStreamImpl<>(messageReceiveHistory, inbox);
+        return new EnvelopeStreamImpl<>(this, Message.class, null);
     }
 
     @Override
     public <S> Commitment sendViaTCP(S object, Endpoint recipient) {
         return () -> {
             try(TCPConnection conn = openNewTCPConnection(recipient).get()) {
-                conn.writeUTF("OBJECT").flush();
+                conn.writeUTF("OBJECT+SIG").flush();
                 String ready = conn.readUTF();
                 if(!ready.equalsIgnoreCase("READY"))
                     throw new IllegalStateException("Recipient is not ready. They responded with " + ready + " instead of READY.");
-                try {
-                    byte[] bytes = new ObjectMapper().writeValueAsBytes(object);
-                    conn.writeInt(bytes.length).flush();
-                    conn.write(bytes).flush();
-                } catch (IOException e) {
-                    Throwables.propagate(e);
-                } finally {
-                    String ack = conn.readUTF();
-                    if (!ready.equalsIgnoreCase("ACK"))
-                        throw new IllegalStateException("Sending to recipient failed. They sent " + ack + " instead of ACK.");
-                }
+                byte[] bytes = Serializer.serialize(object);
+                byte[] signature = SigningUtils.sign(bytes, privateKey);
+                conn.writeInt(bytes.length).flush()
+                        .write(bytes).flush()
+                        .writeInt(signature.length).flush()
+                        .write(signature).flush();
+                String ack = conn.readUTF();
+                if (!ready.equalsIgnoreCase("ACK"))
+                    throw new IllegalStateException("Sending to recipient failed. They sent " + ack + " instead of ACK.");
             }
-
         };
     }
 
@@ -155,20 +178,26 @@ final class ConversationHandle implements ConversationActions {
         return () -> {
             try(TCPConnection conn = waitForTCPConnection(initiator).get()) {
                 String ready = conn.readUTF();
-                if (!ready.equalsIgnoreCase("OBJECT"))
-                    throw new IllegalStateException("Recipient is not sending an object. They sent " + ready + " instead of OBJECT.");
+                if (!ready.equalsIgnoreCase("OBJECT+SIG"))
+                    throw new IllegalStateException("Recipient is not sending an object. They sent " + ready + " instead of OBJECT+SIG.");
                 conn.writeUTF("READY").flush();
                 try {
                     int size = conn.readInt();
                     byte[] bytes = new byte[size];
                     conn.readFully(bytes);
                     S result = new ObjectMapper().readerFor(clazz).readValue(bytes);
+                    if(foreignPublicKeys.containsKey(initiator)) {
+                        int sigSize = conn.readInt();
+                        byte[] signature = new byte[sigSize];
+                        conn.readFully(signature);
+                        SigningUtils.verifyLoud(bytes, signature, foreignPublicKeys.get(initiator));
+                    }
                     conn.writeUTF("ACK").flush();
                     return result;
                 } catch (Exception e) {
                     conn.writeUTF("ERR").flush();
                     Throwables.propagate(e);
-                    return null;
+                    throw new RuntimeException("Unexpected", e);
                 }
             }
         };
@@ -190,7 +219,7 @@ final class ConversationHandle implements ConversationActions {
                 Throwables.propagate(e);
                 return null;
             }
-        }).async(Throwable::printStackTrace);
+        }).async();
     }
 
     @Override
@@ -211,9 +240,20 @@ final class ConversationHandle implements ConversationActions {
                 return new TCPConnection(socket);
             } catch(IOException e) {
                 Throwables.propagate(e);
-                return null;
+                throw new RuntimeException(e);
             }
-        }).async(Throwable::printStackTrace);
+        }).async();
+    }
+
+    PublicKey getPublicKeyForSender(Endpoint peer) {
+        return foreignPublicKeys.get(peer);
+    }
+
+    private void fillPublicKeyForSender(Endpoint peer) {
+        System.out.println("Endpoint: " + subsystem.getUdpEndpoint() + " is trying to get the public key from: " + peer);
+        PublicKeyRequestConversationForInitiator conversation = new PublicKeyRequestConversationForInitiator(peer);
+        subsystem.newConversation(conversation).await();
+        foreignPublicKeys.put(peer, conversation.getResponse());
     }
 
     private void verifyConversationIdAndInbox() {

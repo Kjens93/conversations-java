@@ -1,6 +1,5 @@
 package io.github.kjens93.conversations.communications;
 
-import com.jezhumble.javasysmon.JavaSysMon;
 import io.github.kjens93.conversations.collections.UDPInbox;
 import io.github.kjens93.conversations.collections.UDPInboxRegistry;
 import io.github.kjens93.conversations.conversations.ConversationFactory;
@@ -31,10 +30,6 @@ public class UDPCommunicator {
     private final DatagramSocket socket = SocketFactory.createUDPSocket();
     private static final InetAddress localhost = InetAddress.getLoopbackAddress();
 
-    public UDPCommunicator(ConversationFactory conversationFactory) {
-        this(conversationFactory, new JavaSysMon().currentPid());
-    }
-
     public UDPCommunicator(ConversationFactory conversationFactory, int processId) {
         this.conversationFactory = conversationFactory;
         this.processId = processId;
@@ -45,17 +40,16 @@ public class UDPCommunicator {
         return inboxes;
     }
 
-    public MessageID send(Envelope envelope) {
+    public void send(Envelope envelope) {
         try {
             Message message = envelope.getMessage();
             if(message.getMessageId() == null || message.getConversationId() == null) {
-                MessageID id = newMessageId();
-                message.setMessageId(id);
+                throw new IllegalStateException("Missing MessageID or ConversationID.");
             }
             DatagramPacket packet = envelope.toDatagramPacket();
             socket.send(packet);
-            log.log(Level.INFO, "    Sent: " + envelope.getMessage() + " to: " + envelope.getRemoteEndpoint());
-            return message.getMessageId();
+            log.log(Level.INFO, "    Sent: " + message.getClass().getSimpleName() + " to: " + envelope.getRemoteEndpoint());
+            log.log(Level.FINE, "    Sent: " + new String(packet.getData()) + " to: " + envelope.getRemoteEndpoint());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -65,7 +59,7 @@ public class UDPCommunicator {
         return new Endpoint(localhost, socket.getLocalPort());
     }
 
-    private MessageID newMessageId() {
+    public MessageID newMessageId() {
         return new MessageID(processId, ++messageIdCounter);
     }
 
@@ -93,11 +87,12 @@ public class UDPCommunicator {
     private void receive(DatagramPacket packet) {
         Message message = Serializer.deserialize(Message.class, packet.getData());
         Endpoint remote = new Endpoint(packet.getAddress(), packet.getPort());
+        log.log(Level.INFO, "Received: " + message.getClass().getSimpleName() + " from: " + remote);
+        log.log(Level.FINE, "Received: " + new String(packet.getData()) + " from: " + remote);
         receive(new Envelope<>(message, remote));
     }
 
     private void receive(Envelope envelope) {
-        log.log(Level.INFO, "Received: " + envelope.getMessage() + " from: " + envelope.getRemoteEndpoint());
         MessageID conversationId = envelope.getMessage().getConversationId();
         if(inboxes.containsKey(conversationId)) {
             UDPInbox inbox = inboxes.get(conversationId);

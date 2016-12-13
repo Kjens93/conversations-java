@@ -1,8 +1,8 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.TestMessage;
 import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.messages.Envelope;
-import io.github.kjens93.conversations.messages.Message;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -26,7 +26,7 @@ public class ReliableSend_IT {
     public void setup() {
         subsystem1 = new CommSubsystem(1);
         subsystem2 = new CommSubsystem(2);
-        handle1 = new ConversationHandle(subsystem1.udpCommunicator());
+        handle1 = new ConversationHandle(subsystem1);
         handle1.setReliableRetries(3);
         handle1.setReliableTimeout(500, TimeUnit.MILLISECONDS);
         ep1 = subsystem1.getUdpEndpoint();
@@ -36,14 +36,16 @@ public class ReliableSend_IT {
     @Test
     public void test_reliableSend_success_attept1() throws ReliabilityException {
 
-        Message m1 = new Message();
-        Message m2 = new Message();
+        TestMessage m1 = new TestMessage();
+        TestMessage m2 = new TestMessage();
 
-        subsystem2.registerResponder(Message.class, (actions, env) -> {
+        subsystem2.registerResponder(TestMessage.class, (actions, env) -> {
             actions.send(m2, ep1);
         });
 
-        handle1.reliableSend(m1, ep2, Message.class);
+        handle1.reliableSend(m1, ep2)
+                .expecting(TestMessage.class)
+                .await();
 
         assertThat(handle1.getMessageSendHistory())
                 .extracting(Envelope::getMessage)
@@ -68,15 +70,17 @@ public class ReliableSend_IT {
     @Test
     public void test_reliableSend_success_attept2() throws ReliabilityException {
 
-        Message m1 = new Message();
-        Message m2 = new Message();
+        TestMessage m1 = new TestMessage();
+        TestMessage m2 = new TestMessage();
 
-        subsystem2.registerResponder(Message.class, (actions, env) -> {
+        subsystem2.registerResponder(TestMessage.class, (actions, env) -> {
             actions.receiveOne().await();
             actions.send(m2, ep1);
         });
 
-        handle1.reliableSend(m1, ep2, Message.class);
+        handle1.reliableSend(m1, ep2)
+                .expecting(TestMessage.class)
+                .await();
 
         assertThat(handle1.getMessageSendHistory())
                 .extracting(Envelope::getMessage)
@@ -101,16 +105,18 @@ public class ReliableSend_IT {
     @Test
     public void test_reliableSend_success_attept3() throws ReliabilityException {
 
-        Message m1 = new Message();
-        Message m2 = new Message();
+        TestMessage m1 = new TestMessage();
+        TestMessage m2 = new TestMessage();
 
-        subsystem2.registerResponder(Message.class, (actions, env) -> {
+        subsystem2.registerResponder(TestMessage.class, (actions, env) -> {
             actions.receiveOne().await();
             actions.receiveOne().await();
             actions.send(m2, ep1);
         });
 
-        handle1.reliableSend(m1, ep2, Message.class);
+        handle1.reliableSend(m1, ep2)
+                .expecting(TestMessage.class)
+                .await();
 
         assertThat(handle1.getMessageSendHistory())
                 .extracting(Envelope::getMessage)
@@ -135,14 +141,16 @@ public class ReliableSend_IT {
     @Test
     public void test_reliableSend_fail() {
 
-        Message m1 = new Message();
+        TestMessage m1 = new TestMessage();
 
-        subsystem2.registerResponder(Message.class, (actions, env) -> {
+        subsystem2.registerResponder(TestMessage.class, (actions, env) -> {
             // Do nothing.
         });
 
         assertThatThrownBy(() -> {
-            handle1.reliableSend(m1, ep2, Message.class);
+            handle1.reliableSend(m1, ep2)
+                    .expecting(TestMessage.class)
+                    .await();
         }).isInstanceOf(ReliabilityException.class);
 
         assertThat(handle1.getMessageSendHistory())

@@ -1,9 +1,8 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.TestMessage;
 import io.github.kjens93.conversations.communications.Endpoint;
-import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Envelope;
-import io.github.kjens93.conversations.messages.Message;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -14,20 +13,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class EnvelopeStream_UT {
 
-    private static final UDPCommunicator udpCommunicator = new CommSubsystem(1).udpCommunicator();
+    private static final CommSubsystem subsystem = new CommSubsystem(1);
     private static final Endpoint ep1 = new Endpoint("127.0.0.1", 12345);
     private static final Endpoint ep2 = new Endpoint("127.0.0.1", 54321);
     private ConversationHandle handle;
 
     @Before
     public void setup() {
-        handle = new ConversationHandle(udpCommunicator);
+        handle = new ConversationHandle(subsystem);
     }
 
     @Test
     public void test_receiveOne() {
 
-        Envelope env = new Envelope<>(new Message(), ep1);
+        Envelope env = new Envelope<>(new TestMessage(), ep1);
 
         handle.send(env);
         handle.getInbox().add(env);
@@ -40,12 +39,12 @@ public class EnvelopeStream_UT {
     @Test
     public void test_receiveOne_ofType() {
 
-        Envelope env = new Envelope<>(new Message(), ep1);
+        Envelope env = new Envelope<>(new TestMessage(), ep1);
 
         handle.send(env);
         handle.getInbox().add(env);
 
-        assertThat(handle.receiveOne().ofType(Message.class).get())
+        assertThat(handle.receiveOne().ofType(TestMessage.class).get())
                 .isEqualTo(env);
 
         Envelope<MyMessage> newEnv = new Envelope<>(new MyMessage(), ep1);
@@ -56,7 +55,7 @@ public class EnvelopeStream_UT {
         assertThat(handle.receiveOne().ofType(MyMessage.class).get())
                 .isEqualTo(newEnv);
 
-        assertThat(handle.receiveOne().ofType(Message.class).get())
+        assertThat(handle.receiveOne().ofType(TestMessage.class).get())
                 .isEqualTo(env);
 
     }
@@ -64,8 +63,8 @@ public class EnvelopeStream_UT {
     @Test
     public void test_receiveOne_fromSender() {
 
-        Envelope env1 = new Envelope<>(new Message(), ep1);
-        Envelope env2 = new Envelope<>(new Message(), ep2);
+        Envelope env1 = new Envelope<>(new TestMessage(), ep1);
+        Envelope env2 = new Envelope<>(new TestMessage(), ep2);
 
         handle.send(env1);
         handle.getInbox().add(env1);
@@ -79,7 +78,7 @@ public class EnvelopeStream_UT {
 
     }
 
-    private class MyMessage extends Message {
+    private class MyMessage extends TestMessage {
 
     }
 

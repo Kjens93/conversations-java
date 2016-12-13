@@ -3,7 +3,7 @@ package io.github.kjens93.conversations.conversations;
 /**
  * Created by kjensen on 11/27/16.
  */
-public class ReliabilityException extends Exception {
+public class ReliabilityException extends RuntimeException {
 
     public ReliabilityException() {
     }

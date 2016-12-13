@@ -24,9 +24,11 @@ public interface ConversationActions {
 
     void setReliableTimeout(long timeout, TimeUnit unit);
 
-    <T extends Message> Envelope<T> reliableSend(Envelope envelope, Class<T> expectedResponseType) throws ReliabilityException;
+    ReliableSendStream reliableSend(Envelope envelope);
 
-    <T extends Message> Envelope<T> reliableSend(Message message, Endpoint recipient, Class<T> expectedResponseType) throws ReliabilityException;
+    ReliableSendStream reliableSend(Message message, Endpoint recipient);
+
+    void enableSignatureVerification(Endpoint peer);
 
     void retry(int attempts, ThrowingRunnable runnable) throws Exception;
 
@@ -40,6 +42,6 @@ public interface ConversationActions {
 
     <S> Commitment sendViaTCP(S object, Endpoint recipient) throws ReliabilityException;
 
-    <S> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator);
+    <S> Promise<S> receiveViaTCP(Class<S> clazz, Endpoint initiator) throws SecurityException;
 
 }

@@ -1,5 +1,6 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.TestMessage;
 import io.github.kjens93.conversations.communications.Endpoint;
 import io.github.kjens93.conversations.messages.Message;
 import org.junit.Before;
@@ -29,13 +30,13 @@ public class Conversations_IT {
 
         AtomicBoolean responderCalled = new AtomicBoolean(false);
 
-        s2.registerResponder(Message.class, (actions, initialMessage) -> {
-            actions.send(new Message(), initialMessage.getRemoteEndpoint());
+        s2.registerResponder(TestMessage.class, (actions, initialMessage) -> {
+            actions.send(new TestMessage(), initialMessage.getRemoteEndpoint());
             responderCalled.set(true);
         });
 
         Conversations.newConversation(actions -> {
-            actions.send(new Message(), ep2);
+            actions.send(new TestMessage(), ep2);
             actions.receiveOne()
                     .ofType(Message.class)
                     .fromSender(ep2)

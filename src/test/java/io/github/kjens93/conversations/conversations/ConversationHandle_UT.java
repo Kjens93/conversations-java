@@ -1,9 +1,8 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.TestMessage;
 import io.github.kjens93.conversations.communications.Endpoint;
-import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Envelope;
-import io.github.kjens93.conversations.messages.Message;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,40 +18,40 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 public class ConversationHandle_UT {
 
-    private static final UDPCommunicator udpCommunicator = new CommSubsystem(1).udpCommunicator();
+    private static final CommSubsystem subsystem = new CommSubsystem(1);
     private static final Endpoint ep = new Endpoint("127.0.0.1", 12345);
     private ConversationHandle handle;
 
     @Before
     public void setup() {
-        handle = new ConversationHandle(udpCommunicator);
+        handle = new ConversationHandle(subsystem);
     }
 
     @Test
     public void test_conversation() throws Exception {
 
-        handle.send(new Envelope<>(new Message(), ep));
-        handle.send(new Message(), ep);
+        handle.send(new Envelope<>(new TestMessage(), ep));
+        handle.send(new TestMessage(), ep);
 
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
-        handle.getInbox().add(new Envelope<>(new Message(), ep));
+        handle.getInbox().add(new Envelope<>(new TestMessage(), ep));
+        handle.getInbox().add(new Envelope<>(new TestMessage(), ep));
+        handle.getInbox().add(new Envelope<>(new TestMessage(), ep));
+        handle.getInbox().add(new Envelope<>(new TestMessage(), ep));
 
-        Envelope<Message> env1 = handle.receiveOne()
-                .ofType(Message.class)
+        Envelope<TestMessage> env1 = handle.receiveOne()
+                .ofType(TestMessage.class)
                 .fromSender(ep)
                 .get(5, TimeUnit.SECONDS);
         handle.receiveOne()
-                .ofType(Message.class)
+                .ofType(TestMessage.class)
                 .fromSender(ep)
                 .await(5, TimeUnit.SECONDS);
-        Envelope<Message> env2 = handle.receiveOne()
-                .ofType(Message.class)
+        Envelope<TestMessage> env2 = handle.receiveOne()
+                .ofType(TestMessage.class)
                 .fromSender(ep)
                 .get();
         handle.receiveOne()
-                .ofType(Message.class)
+                .ofType(TestMessage.class)
                 .fromSender(ep)
                 .await();
 
@@ -62,9 +61,9 @@ public class ConversationHandle_UT {
     public void test_conversation_fail_on_no_receive() throws Exception {
 
         assertThatThrownBy(() -> {
-            handle.send(new Message(), ep);
+            handle.send(new TestMessage(), ep);
             handle.receiveOne()
-                    .ofType(Message.class)
+                    .ofType(TestMessage.class)
                     .fromSender(ep)
                     .await(2, TimeUnit.SECONDS);
         }).isInstanceOf(TimeoutException.class);
@@ -76,7 +75,7 @@ public class ConversationHandle_UT {
 
         assertThatThrownBy(() -> {
             handle.receiveOne()
-                    .ofType(Message.class)
+                    .ofType(TestMessage.class)
                     .fromSender(ep)
                     .await(2, TimeUnit.SECONDS);
         }).isInstanceOf(NullPointerException.class)

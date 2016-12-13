@@ -25,4 +25,14 @@ public interface Serializer {
         }
     }
 
+    static byte[] serializeWithMixIn(Object object, Class<?> mixIn) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.addMixIn(object.getClass(), mixIn);
+            return mapper.writeValueAsBytes(object);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

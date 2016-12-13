@@ -1,7 +1,5 @@
 package io.github.kjens93.conversations.conversations;
 
-import com.google.common.base.Throwables;
-import io.github.kjens93.conversations.communications.UDPCommunicator;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.promises.Commitment;
 
@@ -15,15 +13,7 @@ public interface Conversations {
     }
 
     static Commitment newConversation(Conversation conversation) {
-        return () -> {
-            UDPCommunicator comms = CommSubsystem.staticInstance().udpCommunicator();
-            ConversationHandle handle = new ConversationHandle(comms);
-            try {
-                conversation.run(handle);
-            } catch (Exception e) {
-                Throwables.propagate(e);
-            }
-        };
+        return CommSubsystem.staticInstance().newConversation(conversation);
     }
 
 }

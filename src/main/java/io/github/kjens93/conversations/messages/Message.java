@@ -1,8 +1,6 @@
 package io.github.kjens93.conversations.messages;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import lombok.Data;
@@ -14,16 +12,16 @@ import java.io.Serializable;
  */
 @Data
 @JsonTypeInfo(use = Id.CLASS, include = As.PROPERTY, property = "@type")
-@JsonPropertyOrder({"conversationId", "messageId"})
+@JsonPropertyOrder({"@cid", "@mid", "@sig", "@type"})
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Message implements Serializable {
+public abstract class Message implements Serializable {
 
+    @JsonProperty("@cid")
     private MessageID conversationId;
+    @JsonProperty("@mid")
     private MessageID messageId;
-
-    public void setConversationId(MessageID conversationId) {
-        this.conversationId = conversationId;
-    }
+    @JsonProperty("@sig")
+    private byte[] signature;
 
     public void setMessageId(MessageID messageId) {
         this.messageId = messageId;

@@ -1,7 +1,7 @@
 package io.github.kjens93.conversations.conversations;
 
+import io.github.kjens93.conversations.TestMessage;
 import io.github.kjens93.conversations.communications.Endpoint;
-import io.github.kjens93.conversations.messages.Message;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -20,7 +20,7 @@ public class SimpleSendReceive_UT {
 
     @Before
     public void setup() {
-        handle1 = new ConversationHandle(new CommSubsystem(1).udpCommunicator());
+        handle1 = new ConversationHandle(new CommSubsystem(1));
         subsystem2 = new CommSubsystem(2);
         ep2 = subsystem2.getUdpEndpoint();
     }
@@ -30,14 +30,14 @@ public class SimpleSendReceive_UT {
 
         AtomicBoolean success = new AtomicBoolean(false);
 
-        subsystem2.registerResponder(Message.class, (actions, initialMessage) -> {
+        subsystem2.registerResponder(TestMessage.class, (actions, initialMessage) -> {
             synchronized (success) {
                 success.set(true);
                 success.notify();
             }
         });
 
-        handle1.send(new Message(), ep2);
+        handle1.send(new TestMessage(), ep2);
 
         synchronized (success) {
             success.wait(1000);

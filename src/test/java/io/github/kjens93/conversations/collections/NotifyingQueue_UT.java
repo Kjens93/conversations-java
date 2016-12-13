@@ -18,7 +18,7 @@ public class NotifyingQueue_UT {
         ((Commitment) () -> q.add("Hello!")).async();
 
         synchronized (q) {
-            q.wait(5000);
+            q.wait(1000);
         }
 
         assertThat(q.poll())

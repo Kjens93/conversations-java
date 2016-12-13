@@ -7,6 +7,7 @@ import io.github.kjens93.conversations.messages.Envelope;
 import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
 import io.github.kjens93.promises.Commitment;
+import lombok.RequiredArgsConstructor;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,8 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Created by kjensen on 11/27/16.
  */
+@RequiredArgsConstructor
 public class ConversationFactory {
 
+    private final CommSubsystem subsystem;
     private final Map<Class, Responder> responders = new ConcurrentHashMap<>();
 
     public void startConversationOnNewThread(Envelope envelope, UDPCommunicator udpCommunicator) {
@@ -25,16 +28,14 @@ public class ConversationFactory {
         Responder responder = responders.get(envelope.getMessage().getClass());
         if(responder == null)
             throw new IllegalStateException("Responder not registered for incoming message: " + envelope);
-        ConversationHandle handle = new ConversationHandle(udpCommunicator);
-        handle.setConversationId(conversationId);
-        handle.setInbox(inbox);
+        ConversationHandle handle = new ConversationHandle(subsystem, conversationId);
         ((Commitment)() -> {
             try {
                 responder.run(handle);
             } catch (Exception e) {
                 Throwables.propagate(e);
             }
-        }).async(Throwable::printStackTrace);
+        }).async();
     }
 
     public <T extends Message> void registerResponder(Class<T> clazz, Responder<T> responder) {
