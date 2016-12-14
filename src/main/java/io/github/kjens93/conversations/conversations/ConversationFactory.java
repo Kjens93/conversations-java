@@ -8,13 +8,16 @@ import io.github.kjens93.conversations.messages.Message;
 import io.github.kjens93.conversations.messages.MessageID;
 import io.github.kjens93.promises.Commitment;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 /**
  * Created by kjensen on 11/27/16.
  */
+@Log
 @RequiredArgsConstructor
 public class ConversationFactory {
 
@@ -33,7 +36,12 @@ public class ConversationFactory {
             try {
                 responder.run(handle);
             } catch (Exception e) {
+                log.log(Level.SEVERE, "Exception occurred in responder ["
+                        + responder.getClass().getSimpleName() + "] with conversation id: ["
+                        + handle.getConversationId() + "]", e);
                 Throwables.propagate(e);
+            } finally {
+                handle.close();
             }
         }).async();
     }

@@ -47,4 +47,34 @@ public class Conversations_IT {
 
     }
 
+    @Test
+    public void test_double_execute() {
+
+        AtomicBoolean responderCalled = new AtomicBoolean(false);
+
+        s2.registerResponder(TestMessage.class, (actions, initialMessage) -> {
+            actions.send(new TestMessage(), initialMessage.getRemoteEndpoint());
+            responderCalled.set(true);
+        });
+
+        Conversation conversation = actions -> {
+            actions.send(new TestMessage(), ep2);
+            actions.receiveOne()
+                    .ofType(Message.class)
+                    .fromSender(ep2)
+                    .await(500, TimeUnit.MILLISECONDS);
+        };
+
+        Conversations.newConversation(conversation).await();
+
+        assertThat(responderCalled.get()).isTrue();
+
+        responderCalled.set(false);
+
+        Conversations.newConversation(conversation).await();
+
+        assertThat(responderCalled.get()).isTrue();
+
+    }
+
 }

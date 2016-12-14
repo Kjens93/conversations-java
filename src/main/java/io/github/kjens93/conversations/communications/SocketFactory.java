@@ -23,14 +23,8 @@ public final class SocketFactory {
     public static DatagramSocket createUDPSocket() {
         try {
             int port = findAvailableUDPPort();
-            DatagramSocket socket = new DatagramSocket(port);
-            System.out.println("Opened UDP socket on port " + port);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                if(!socket.isClosed()) {
-                    socket.close();
-                    System.out.println("Closed UDP socket on port " + port);
-                }
-            }));
+            DatagramSocket socket = new LoggingDatagramSocket(port);
+            Runtime.getRuntime().addShutdownHook(new Thread(socket::close));
             return socket;
         } catch (SocketException e) {
             throw new RuntimeException(e);
@@ -38,35 +32,16 @@ public final class SocketFactory {
     }
 
     public static Socket createTCPConnectionSocket() {
-        Socket socket = new Socket();
-        System.out.println("Opened TCP connection socket");
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            if(!socket.isClosed()) {
-                try {
-                    socket.close();
-                    System.out.println("Closed TCP connection socket on port " + socket.getLocalPort());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }));
+        LoggingSocket socket = new LoggingSocket();
+        Runtime.getRuntime().addShutdownHook(new Thread(socket::close));
         return socket;
     }
 
     public static ServerSocket createTCPServerSocket() {
         try {
             int port = findAvailableTCPPort();
-            ServerSocket socket = new ServerSocket(port);
-            System.out.println("Opened TCP server socket on port " + port);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    socket.close();
-                } catch(IOException e){
-                    e.printStackTrace();
-                } finally {
-                    System.out.println("Closed TCP server socket on port " + port);
-                }
-            }));
+            LoggingServerSocket socket = new LoggingServerSocket(port);
+            Runtime.getRuntime().addShutdownHook(new Thread(socket::close));
             return socket;
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -74,13 +49,11 @@ public final class SocketFactory {
     }
 
     private static int findAvailableUDPPort() {
-        return (minPort == maxPort) ? minPort :
-                SocketUtils.findAvailableUdpPort(minPort, maxPort);
+        return SocketUtils.findAvailableUdpPort(minPort, maxPort);
     }
 
     private static int findAvailableTCPPort() {
-        return (minPort == maxPort) ? minPort :
-                SocketUtils.findAvailableTcpPort(minPort, maxPort);
+        return SocketUtils.findAvailableTcpPort(minPort, maxPort);
     }
 
 }

@@ -58,6 +58,7 @@ public class CommSubsystem {
             ConversationHandle handle = new ConversationHandle(this);
             try {
                 conversation.run(handle);
+                handle.close();
             } catch (Exception e) {
                 Throwables.propagate(e);
             }

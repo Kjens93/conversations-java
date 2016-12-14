@@ -15,7 +15,11 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.logging.Level;
+
+import static io.github.kjens93.conversations.communications.Strings.rcvd_udp;
+import static io.github.kjens93.conversations.communications.Strings.sent_udp;
 
 /**
  * Created by kjensen on 11/27/16.
@@ -23,8 +27,7 @@ import java.util.logging.Level;
 @Log
 public class UDPCommunicator {
 
-    private final int processId;
-    private short messageIdCounter = 0;
+    private final MessageIDFactory messageIDFactory;
     private final ConversationFactory conversationFactory;
     private final UDPInboxRegistry inboxes = UDPInboxRegistry.newInstance();
     private final DatagramSocket socket = SocketFactory.createUDPSocket();
@@ -32,7 +35,7 @@ public class UDPCommunicator {
 
     public UDPCommunicator(ConversationFactory conversationFactory, int processId) {
         this.conversationFactory = conversationFactory;
-        this.processId = processId;
+        this.messageIDFactory = new MessageIDFactory(processId);
         startReceiving();
     }
 
@@ -48,8 +51,11 @@ public class UDPCommunicator {
             }
             DatagramPacket packet = envelope.toDatagramPacket();
             socket.send(packet);
-            log.log(Level.INFO, "    Sent: " + message.getClass().getSimpleName() + " to: " + envelope.getRemoteEndpoint());
-            log.log(Level.FINE, "    Sent: " + new String(packet.getData()) + " to: " + envelope.getRemoteEndpoint());
+            String representation;
+            representation = message.getClass().getSimpleName() + " " + message.getConversationId() + " " + message.getMessageId();
+            log.log(Level.INFO, String.format(sent_udp, representation, envelope.getRemoteEndpoint()));
+            representation = new String(Arrays.copyOf(packet.getData(), packet.getData().length));
+            log.log(Level.FINE, String.format(sent_udp, representation, envelope.getRemoteEndpoint()));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -60,7 +66,7 @@ public class UDPCommunicator {
     }
 
     public MessageID newMessageId() {
-        return new MessageID(processId, ++messageIdCounter);
+        return messageIDFactory.nextMessageID();
     }
 
     private void startReceiving() {
@@ -87,8 +93,11 @@ public class UDPCommunicator {
     private void receive(DatagramPacket packet) {
         Message message = Serializer.deserialize(Message.class, packet.getData());
         Endpoint remote = new Endpoint(packet.getAddress(), packet.getPort());
-        log.log(Level.INFO, "Received: " + message.getClass().getSimpleName() + " from: " + remote);
-        log.log(Level.FINE, "Received: " + new String(packet.getData()) + " from: " + remote);
+        String representation;
+        representation = message.getClass().getSimpleName() + " " + message.getConversationId() + " " + message.getMessageId();
+        log.log(Level.INFO, String.format(rcvd_udp, representation, remote));
+        representation = new String(Arrays.copyOf(packet.getData(), packet.getData().length));
+        log.log(Level.FINE, String.format(rcvd_udp, representation, remote));
         receive(new Envelope<>(message, remote));
     }
 

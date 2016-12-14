@@ -17,6 +17,7 @@ import io.github.kjens93.promises.Promise;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.java.Log;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import java.io.IOException;
@@ -25,13 +26,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+
+import static io.github.kjens93.conversations.conversations.Strings.*;
 
 
 /**
  * Created by kjensen on 11/26/16.
  */
+@Log
 class ConversationHandle implements ConversationActions {
 
     private final CommSubsystem subsystem;
@@ -58,6 +65,7 @@ class ConversationHandle implements ConversationActions {
     @Setter(AccessLevel.PUBLIC)
     private int reliableRetries = 3;
     private long reliableTimeout = 2000;
+    private boolean closed = false;
     private TimeUnit reliableTimeoutUnit = TimeUnit.MILLISECONDS;
 
     ConversationHandle(CommSubsystem subsystem) {
@@ -74,6 +82,10 @@ class ConversationHandle implements ConversationActions {
 
     @Override
     public void send(Envelope envelope) {
+        if(closed) {
+            throw new ConversationClosedException("Conversation of type [" + getClass().getName() +
+                    "] is closed, but still attempting to send messages.");
+        }
         if(conversationId != null) {
             envelope.getMessage().setConversationId(conversationId);
         }
@@ -157,18 +169,22 @@ class ConversationHandle implements ConversationActions {
         return () -> {
             try(TCPConnection conn = openNewTCPConnection(recipient).get()) {
                 conn.writeUTF("OBJECT+SIG").flush();
-                String ready = conn.readUTF();
-                if(!ready.equalsIgnoreCase("READY"))
-                    throw new IllegalStateException("Recipient is not ready. They responded with " + ready + " instead of READY.");
+                String res;
+                res = conn.readUTF();
+                if(!res.equalsIgnoreCase("READY"))
+                    throw new IllegalStateException("Recipient is not ready. They responded with " + res + " instead of READY.");
                 byte[] bytes = Serializer.serialize(object);
                 byte[] signature = SigningUtils.sign(bytes, privateKey);
                 conn.writeInt(bytes.length).flush()
                         .write(bytes).flush()
                         .writeInt(signature.length).flush()
                         .write(signature).flush();
-                String ack = conn.readUTF();
-                if (!ready.equalsIgnoreCase("ACK"))
-                    throw new IllegalStateException("Sending to recipient failed. They sent " + ack + " instead of ACK.");
+                log.log(Level.INFO, String.format(sent_obj, object.getClass().getSimpleName(), recipient));
+                res = conn.readUTF();
+                if (!res.equalsIgnoreCase("ACK"))
+                    throw new IllegalStateException("Sending to recipient failed. They sent " + res + " instead of ACK.");
+                log.log(Level.FINE, String.format(rcvd_ack, recipient));
+
             }
         };
     }
@@ -186,6 +202,7 @@ class ConversationHandle implements ConversationActions {
                     byte[] bytes = new byte[size];
                     conn.readFully(bytes);
                     S result = new ObjectMapper().readerFor(clazz).readValue(bytes);
+                    log.log(Level.INFO, String.format(rcvd_obj, result.getClass().getSimpleName(), initiator));
                     if(foreignPublicKeys.containsKey(initiator)) {
                         int sigSize = conn.readInt();
                         byte[] signature = new byte[sigSize];
@@ -193,6 +210,7 @@ class ConversationHandle implements ConversationActions {
                         SigningUtils.verifyLoud(bytes, signature, foreignPublicKeys.get(initiator));
                     }
                     conn.writeUTF("ACK").flush();
+                    log.log(Level.FINE, String.format(sent_ack, initiator));
                     return result;
                 } catch (Exception e) {
                     conn.writeUTF("ERR").flush();
@@ -213,7 +231,6 @@ class ConversationHandle implements ConversationActions {
                 send(msg, recipient);
                 serverSocket.setSoTimeout(10 * 60 * 1000);
                 Socket socket = serverSocket.accept();
-                System.out.println("Accepted TCP connection from remote " + socket.getRemoteSocketAddress() + " on local port " + socket.getLocalPort());
                 return new TCPConnection(socket, serverSocket);
             } catch (IOException e) {
                 Throwables.propagate(e);
@@ -236,7 +253,6 @@ class ConversationHandle implements ConversationActions {
                         }).get();
                 Socket socket = SocketFactory.createTCPConnectionSocket();
                 socket.connect(newEndpoint);
-                System.out.println("Connected TCP socket on local port " + socket.getLocalPort() + " to remote " + newEndpoint);
                 return new TCPConnection(socket);
             } catch(IOException e) {
                 Throwables.propagate(e);
@@ -245,12 +261,17 @@ class ConversationHandle implements ConversationActions {
         }).async();
     }
 
+    void close() {
+        udpCommunicator.inboxes().remove(conversationId);
+        closed = true;
+        log.log(Level.INFO, String.format(clsd_con, conversationId));
+    }
+
     PublicKey getPublicKeyForSender(Endpoint peer) {
         return foreignPublicKeys.get(peer);
     }
 
     private void fillPublicKeyForSender(Endpoint peer) {
-        System.out.println("Endpoint: " + subsystem.getUdpEndpoint() + " is trying to get the public key from: " + peer);
         PublicKeyRequestConversationForInitiator conversation = new PublicKeyRequestConversationForInitiator(peer);
         subsystem.newConversation(conversation).await();
         foreignPublicKeys.put(peer, conversation.getResponse());
@@ -259,6 +280,10 @@ class ConversationHandle implements ConversationActions {
     private void verifyConversationIdAndInbox() {
         if(conversationId == null)
             throw new NullPointerException("Conversation ID is null. Make sure you call send() at least once before you call receiveOne().");
+        if(closed) {
+            throw new ConversationClosedException("Conversation of type [" + getClass().getName() +
+                    "] with id: [" + conversationId + "] is closed, but still attempting to receive messages.");
+        }
         if(inbox == null)
             throw new NullPointerException("Inbox is null. Make sure you call send() at least once before you call receiveOne().");
     }
