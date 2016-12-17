@@ -10,7 +10,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: io.github.kjens93.promises:promises:1.2.0" level="project" />
+    <orderEntry type="module" module-name="promises" />
     <orderEntry type="library" name="Maven: com.google.guava:guava-base:r03" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava-annotations:r03" level="project" />
     <orderEntry type="library" name="Maven: io.github.kjens93.funkier:funkier:3.0.0" level="project" />
